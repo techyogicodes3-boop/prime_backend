@@ -20,6 +20,20 @@ services:
         value: info@prims.com
       - key: ADMIN_PASSWORD
         sync: false
+      - key: ENQUIRY_TO_EMAIL
+        value: info@prismedu.in
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_SECURE
+        value: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
 
   - type: web
     name: prism-app

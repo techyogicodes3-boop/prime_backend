@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon --watch . --ext js,json index.js",
+    "test": "node --test",
     "db:migrate": "node seed.js",
     "admin:set": "node admin.js"
   },

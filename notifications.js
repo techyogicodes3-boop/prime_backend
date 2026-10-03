@@ -3,7 +3,8 @@ import {findListing} from './db.js';
 export const mailConfigured = () => ['SMTP_HOST','MAIL_FROM','PRISM_NOTIFICATION_EMAIL','APP_ORIGIN'].every(key=>process.env[key]);
 export const enquiryMailConfigured = () => ['SMTP_HOST','SMTP_USER','SMTP_PASSWORD','MAIL_FROM'].every(key=>process.env[key]);
 export const whatsappNumber = () => /^\d{8,15}$/.test(process.env.PRISM_WHATSAPP_NUMBER || '') ? process.env.PRISM_WHATSAPP_NUMBER : '';
-const mailTransport = () => nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT || 587),secure:process.env.SMTP_SECURE==='true',requireTLS:process.env.SMTP_SECURE!=='true',auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASSWORD},connectionTimeout:10000,socketTimeout:15000});
+export const normalizeSmtpPassword = (host,password) => /^(smtp\.)?(gmail|googlemail)\.com$/i.test(String(host||'')) ? String(password||'').replace(/[\s-]/g,'') : String(password||'');
+const mailTransport = () => nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT || 587),secure:process.env.SMTP_SECURE==='true',requireTLS:process.env.SMTP_SECURE!=='true',auth:{user:process.env.SMTP_USER,pass:normalizeSmtpPassword(process.env.SMTP_HOST,process.env.SMTP_PASSWORD)},connectionTimeout:10000,socketTimeout:15000});
 export function whatsappLink(record) {
   if (!whatsappNumber()) return null;
   const message=`Hello Prism Edu Consultancy,\n\nI have submitted a ${record.type==='Properties Required'?'School Properties Requirement':'Property Listing'}.\n\nReference Number: ${record.reference}\nName: ${record.contactName}\nOrganization: ${record.ownerName || ''}\nLocation: ${record.location}\nRequired/Available Area: ${record.area} ${record.areaUnit}\nTransaction Preference: ${record.transaction}\nPhone Number: ${record.phone}\nShort Description: ${(record.summary || record.description).slice(0,180)}\n\nPlease review my submission and contact me.`;
