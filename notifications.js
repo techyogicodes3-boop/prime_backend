@@ -4,7 +4,14 @@ export const mailConfigured = () => ['SMTP_HOST','MAIL_FROM','PRISM_NOTIFICATION
 export const enquiryMailConfigured = () => ['SMTP_HOST','SMTP_USER','SMTP_PASSWORD','MAIL_FROM'].every(key=>process.env[key]);
 export const whatsappNumber = () => /^\d{8,15}$/.test(process.env.PRISM_WHATSAPP_NUMBER || '') ? process.env.PRISM_WHATSAPP_NUMBER : '';
 export const normalizeSmtpPassword = (host,password) => /^(smtp\.)?(gmail|googlemail)\.com$/i.test(String(host||'')) ? String(password||'').replace(/[\s-]/g,'') : String(password||'');
-const mailTransport = () => nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT || 587),secure:process.env.SMTP_SECURE==='true',requireTLS:process.env.SMTP_SECURE!=='true',auth:{user:process.env.SMTP_USER,pass:normalizeSmtpPassword(process.env.SMTP_HOST,process.env.SMTP_PASSWORD)},connectionTimeout:10000,socketTimeout:15000});
+export const smtpTransportOptions = (environment=process.env) => {
+  const secure=environment.SMTP_SECURE==='true';
+  const options={host:environment.SMTP_HOST,port:Number(environment.SMTP_PORT||(secure?465:587)),secure,requireTLS:!secure,connectionTimeout:10000,greetingTimeout:10000,socketTimeout:15000};
+  if(environment.SMTP_USER)options.auth={user:environment.SMTP_USER,pass:normalizeSmtpPassword(environment.SMTP_HOST,environment.SMTP_PASSWORD)};
+  return options;
+};
+export const createMailTransport = (environment=process.env) => nodemailer.createTransport(smtpTransportOptions(environment));
+const mailTransport = () => createMailTransport();
 export function whatsappLink(record) {
   if (!whatsappNumber()) return null;
   const message=`Hello Prism Edu Consultancy,\n\nI have submitted a ${record.type==='Properties Required'?'School Properties Requirement':'Property Listing'}.\n\nReference Number: ${record.reference}\nName: ${record.contactName}\nOrganization: ${record.ownerName || ''}\nLocation: ${record.location}\nRequired/Available Area: ${record.area} ${record.areaUnit}\nTransaction Preference: ${record.transaction}\nPhone Number: ${record.phone}\nShort Description: ${(record.summary || record.description).slice(0,180)}\n\nPlease review my submission and contact me.`;
@@ -38,7 +45,7 @@ export async function sendEnquiryEmail(record,testTransport) {
 }
 export async function deliverNotifications(db, testTransport) {
   if (!mailConfigured()) return;
-  const transport=testTransport || nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT || 587),secure:process.env.SMTP_SECURE==='true',requireTLS:process.env.SMTP_SECURE!=='true',auth:process.env.SMTP_USER?{user:process.env.SMTP_USER,pass:process.env.SMTP_PASSWORD}:undefined,connectionTimeout:10000,socketTimeout:15000});
+  const transport=testTransport || createMailTransport();
   const jobs=await db.collection('notifications').find({status:{$in:['pending','failed']},attempts:{$lt:5},nextAttempt:{$lte:new Date()}}).limit(10).toArray();
   for (const job of jobs) {
     const item=await findListing(db,job.listingId); if (!item) continue;

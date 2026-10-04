@@ -11,6 +11,8 @@ Set `MONGODB_URI` and `ADMIN_PASSWORD` in the API service's Render Environment s
 
 Contact-form email delivery uses SMTP. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, and `ENQUIRY_TO_EMAIL`. For Google Workspace or Gmail, use `smtp.gmail.com`, port `587`, `SMTP_SECURE=false`, the full mailbox as both `SMTP_USER` and `MAIL_FROM`, and a Google App Password created by that same mailbox as `SMTP_PASSWORD`. Display spaces or hyphens in Google app passwords are removed automatically. Keep all SMTP values in the backend environment only; never commit the password.
 
+Run `npm run smtp:test` in the backend environment to verify the SMTP connection and login without sending an email. A Gmail `535` response means the configured username and app password do not belong together, the app password was revoked, or Google Workspace policy is blocking SMTP authentication.
+
 Copy `.env.example` to `.env` for local API development. Run `npm ci`, `npm run dev`, `npm run db:migrate`, or `npm run admin:set`. The frontend uses relative `/api` requests; do not place backend secrets in frontend environment variables.
 
 After the first deployment, open the API service Shell and run `npm run admin:set` once to provision the administrator from `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
