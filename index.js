@@ -7,7 +7,8 @@ const apiEnvFile=fileURLToPath(new URL('./.env',import.meta.url));
 if(existsSync(apiEnvFile))process.loadEnvFile(apiEnvFile);
 if (process.env.NODE_ENV==='production') {
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length<48) throw Error('Production requires SESSION_SECRET of at least 48 characters.');
-  if (!process.env.APP_ORIGIN?.startsWith('https://')) throw Error('Production requires an HTTPS APP_ORIGIN.');
+  const appOrigins=String(process.env.APP_ORIGIN||'').split(',').map(value=>value.trim()).filter(Boolean);
+  if (!appOrigins.length || appOrigins.some(origin=>!origin.startsWith('https://'))) throw Error('Production requires one or more HTTPS APP_ORIGIN values.');
   if (!process.env.MONGODB_URI) throw Error('Production requires MONGODB_URI.');
 }
 let db;

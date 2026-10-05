@@ -16,6 +16,13 @@ import {enquiryValidationError} from './enquiry-validation.js';
 const frontendDist=fileURLToPath(new URL('../app/dist/',import.meta.url));
 const propertyBase=['/api/properties','/api/Properties'];
 const contactWhatsAppNumber='919518963309';
+const officialAppOrigins=['https://prismedu.in','https://www.prismedu.in','https://prime-frontend-16cn.onrender.com'];
+const publicReadPaths=[
+  /^\/api\/(?:properties|Properties)(?:\/|$)/,
+  /^\/api\/materials(?:\/|$)/,
+  /^\/api\/(?:media|material-images|resources|resource-media|co-partners|co-partner-media)(?:\/|$)/,
+  /^\/api\/health$/,
+];
 // eslint-disable-next-line no-control-regex
 const clean=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').trim();
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:8*1024*1024,files:10,fields:2,fieldSize:100000},fileFilter:(_req,file,done)=>['image/jpeg','image/png','image/webp'].includes(file.mimetype)?done(null,true):done(Object.assign(Error('Use JPEG, PNG or WebP images.'),{status:422,fields:{images:'Unsupported image type.'}}))}).array('images',10);
@@ -32,10 +39,14 @@ export function createApp(db){
   app.use(express.json({limit:'120kb'}));
   app.use(express.urlencoded({extended:false,limit:'120kb'}));
   app.use('/api',(req,res,next)=>{
-    const allowed=new Set([process.env.APP_ORIGIN||'http://localhost:5173']);
+    const configuredOrigins=String(process.env.APP_ORIGIN||'http://localhost:5173').split(',').map(value=>value.trim()).filter(Boolean);
+    const allowed=new Set([...officialAppOrigins,...configuredOrigins]);
     if(process.env.NODE_ENV!=='production')allowed.add('http://127.0.0.1:5173').add('http://localhost:5173');
     const origin=req.headers.origin;
-    if(origin&&!allowed.has(origin))return res.status(403).json({error:'Request origin is not permitted.'});
+    const requestedMethod=req.method==='OPTIONS'?String(req.headers['access-control-request-method']||'').toUpperCase():req.method;
+    const requestPath=req.originalUrl.split('?')[0];
+    const publicRead=['GET','HEAD'].includes(requestedMethod)&&publicReadPaths.some(pattern=>pattern.test(requestPath));
+    if(origin&&!allowed.has(origin)&&!publicRead)return res.status(403).json({error:'Request origin is not permitted.'});
     if(origin){
       res.set('Access-Control-Allow-Origin',origin);
       res.set('Access-Control-Allow-Credentials','true');

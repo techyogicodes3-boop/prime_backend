@@ -11,7 +11,7 @@ services:
       - key: PORT
         value: 10000
       - key: APP_ORIGIN
-        value: https://prime-frontend-16cn.onrender.com
+        value: "https://prismedu.in,https://www.prismedu.in,https://prime-frontend-16cn.onrender.com"
       - key: MONGODB_URI
         sync: false
       - key: SESSION_SECRET
