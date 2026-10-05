@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../app.js';
 
-test('accepts a URL-encoded enquiry without a JSON preflight', async t => {
+test('saves a URL-encoded enquiry and returns its prefilled WhatsApp redirect', async t => {
   const smtpKeys=['SMTP_HOST','SMTP_USER','SMTP_PASSWORD','MAIL_FROM'];
   const previous=Object.fromEntries(smtpKeys.map(key=>[key,process.env[key]]));
   smtpKeys.forEach(key=>delete process.env[key]);
@@ -25,8 +25,12 @@ test('accepts a URL-encoded enquiry without a JSON preflight', async t => {
     body:new URLSearchParams({name:'Test User',email:'test@example.com',phone:'9876543210',organization:'Test School',location:'Pune',topic:'Test',message:'This is an integration test enquiry.'}),
   });
 
-  assert.equal(response.status,503);
+  assert.equal(response.status,201);
   assert.equal(enquiries.length,1);
   assert.equal(enquiries[0].phone,'9876543210');
   assert.equal(enquiries[0].emailStatus,'awaiting_configuration');
+  const result=await response.json();
+  assert.match(result.whatsappUrl,/^https:\/\/wa\.me\/919518963309\?text=/);
+  assert.match(decodeURIComponent(result.whatsappUrl),/Test User/);
+  assert.match(decodeURIComponent(result.whatsappUrl),/Test School/);
 });

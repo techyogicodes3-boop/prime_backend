@@ -13,6 +13,6 @@ Contact-form email delivery uses SMTP. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP
 
 Run `npm run smtp:test` in the backend environment to verify the SMTP connection and login without sending an email. A Gmail `535` response means the configured username and app password do not belong together, the app password was revoked, or Google Workspace policy is blocking SMTP authentication.
 
-Copy `.env.example` to `.env` for local API development. Run `npm ci`, `npm run dev`, `npm run db:migrate`, or `npm run admin:set`. The frontend uses relative `/api` requests; do not place backend secrets in frontend environment variables.
+Copy `.env.example` to `.env` for local API development. Run `npm ci`, `npm run dev`, `npm run db:migrate`, or `npm run admin:set`. The frontend routes every API request through its single `VITE_API_BASE_URL` environment key; do not place backend secrets in frontend environment variables.
 
 After the first deployment, open the API service Shell and run `npm run admin:set` once to provision the administrator from `ADMIN_USERNAME` and `ADMIN_PASSWORD`.

@@ -41,6 +41,8 @@ async function ensureIndexes(db){
     db.collection('resourceMedia').createIndex({resourceId:1}),
     db.collection('coPartners').createIndex({displayOrder:1,createdAt:1}),
     db.collection('coPartnerMedia').createIndex({partnerId:1}),
+    db.collection('enquiries').createIndex({createdAt:-1}),
+    db.collection('enquiries').createIndex({status:1,createdAt:-1}),
     db.collection('migrations').createIndex({name:1},{unique:true}),
   ]);
 }

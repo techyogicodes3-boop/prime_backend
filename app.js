@@ -15,6 +15,7 @@ import {enquiryValidationError} from './enquiry-validation.js';
  
 const frontendDist=fileURLToPath(new URL('../app/dist/',import.meta.url));
 const propertyBase=['/api/properties','/api/Properties'];
+const contactWhatsAppNumber='919518963309';
 // eslint-disable-next-line no-control-regex
 const clean=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').trim();
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:8*1024*1024,files:10,fields:2,fieldSize:100000},fileFilter:(_req,file,done)=>['image/jpeg','image/png','image/webp'].includes(file.mimetype)?done(null,true):done(Object.assign(Error('Use JPEG, PNG or WebP images.'),{status:422,fields:{images:'Unsupported image type.'}}))}).array('images',10);
@@ -105,15 +106,14 @@ export function createApp(db){
     await db.collection('enquiries').insertOne(enquiry);
     try{
       const delivery=await sendEnquiryEmail(enquiry);
-      if(!delivery.sent){await db.collection('enquiries').updateOne({_id:enquiry._id},{$set:{emailStatus:'awaiting_configuration'}});return res.status(503).json({error:'Your enquiry was saved, but email delivery is not configured yet. Please contact info@prismedu.in.'});}
-      await db.collection('enquiries').updateOne({_id:enquiry._id},{$set:{emailStatus:'sent',emailSentAt:new Date()}});
-      res.status(201).json({ok:true,message:'Email sent successfully. We will reach you as soon as possible.'});
+      if(!delivery.sent)await db.collection('enquiries').updateOne({_id:enquiry._id},{$set:{emailStatus:'awaiting_configuration'}});
+      else await db.collection('enquiries').updateOne({_id:enquiry._id},{$set:{emailStatus:'sent',emailSentAt:new Date()}});
     }catch(error){
       const emailErrorCode=String(error?.code||error?.responseCode||'unknown').slice(0,40);
       console.error('Enquiry email delivery failed.',{code:emailErrorCode,command:String(error?.command||'').slice(0,40)});
       await db.collection('enquiries').updateOne({_id:enquiry._id},{$set:{emailStatus:'failed',emailErrorCode}});
-      res.status(502).json({error:'Your enquiry was saved, but the email could not be sent. Please try again or email info@prismedu.in.'});
     }
+    res.status(201).json({ok:true,id:enquiry._id,message:'Your enquiry has been saved successfully. Opening WhatsApp…',whatsappUrl:enquiryWhatsAppLink(enquiry)});
   });
 
   app.get('/api/resources',async(_req,res)=>{
@@ -183,6 +183,21 @@ export function createApp(db){
 
   registerMaterials(app,db,{adminAuth,upload,parseData,prepareImages});
   app.use('/api/admin',adminAuth);
+  app.get('/api/admin/enquiries',async(req,res)=>{
+    const page=Math.max(1,Number(req.query.page)||1),limit=20;
+    const keyword=clean(req.query.q).slice(0,120),status=clean(req.query.status);
+    const filter={};
+    if(keyword){const escaped=keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),pattern=new RegExp(escaped,'i');filter.$or=['name','email','phone','organization','location','topic','message'].map(key=>({[key]:pattern}));}
+    if(status)filter.status=status;
+    const [documents,total,newCount,allCount]=await Promise.all([
+      db.collection('enquiries').find(filter).sort({createdAt:-1}).skip((page-1)*limit).limit(limit).toArray(),
+      db.collection('enquiries').countDocuments(filter),
+      db.collection('enquiries').countDocuments({status:'New'}),
+      db.collection('enquiries').countDocuments({}),
+    ]);
+    const items=documents.map(document=>{const item={...document,id:String(document._id),whatsappUrl:enquiryWhatsAppLink(document)};delete item._id;return item;});
+    res.json({items,total,page,limit,counts:{total:allCount,new:newCount}});
+  });
   app.get('/api/admin/resources',async(_req,res)=>{
     const items=await db.collection('resources').find({}).sort({updatedAt:-1}).toArray();
     res.json({items:items.map(resourceRecord)});
@@ -305,6 +320,20 @@ export function createApp(db){
 function filterRecords(records,query){
   const keyword=clean(query.q).toLowerCase(),location=clean(query.location).toLowerCase();
   return records.filter(item=>(!keyword||[item.title,item.reference,item.location,item.city,item.district,item.description].join(' ').toLowerCase().includes(keyword))&&(!location||[item.location,item.city,item.district].join(' ').toLowerCase().includes(location))&&(!query.type||item.type===query.type)&&(!query.propertyType||item.propertyType===query.propertyType)&&(!query.transaction||item.transaction===clean(query.transaction))&&(query.urgent!=='true'||item.urgent)&&(!query.minArea||item.area>=Number(query.minArea))&&(!query.maxArea||item.area<=Number(query.maxArea))&&(!query.areaUnit||item.areaUnit===query.areaUnit));
+}
+
+function enquiryWhatsAppLink(enquiry){
+  const text=[
+    'New Contact Enquiry - Prism Edu',
+    `Name: ${enquiry.name}`,
+    `Mobile: ${enquiry.phone}`,
+    `Email: ${enquiry.email}`,
+    `School / Organization: ${enquiry.organization||'Not provided'}`,
+    `City / Location: ${enquiry.location||'Not provided'}`,
+    `Enquiry Type: ${enquiry.topic}`,
+    `Message: ${enquiry.message}`,
+  ].join('\n');
+  return `https://wa.me/${contactWhatsAppNumber}?text=${encodeURIComponent(text)}`;
 }
 
 function resourceRecord(document){

@@ -41,6 +41,9 @@ services:
     repo: https://github.com/techyogicodes3-boop/prime_frontend.git
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://prime-backend-mj1e.onrender.com
     routes:
       - type: rewrite
         source: /*
